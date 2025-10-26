@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disease Detection App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .search-box {
+            margin: 15px 0;
+            padding: 10px;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .symptoms-container {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 8px;
+        }
+        .symptom-item {
+            margin: 5px 0;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 20px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            text-align: center;
+        }
+        .symptom-item:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+        .symptom-item.selected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #5a6fd8;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .selected-symptoms-container {
+            margin: 20px 0;
+            border: 2px dashed #ccc;
+            padding: 15px;
+            border-radius: 10px;
+            background: #fafafa;
+            min-height: 80px;
+        }
+        .selected-symptoms {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .selected-symptom-tag {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .remove-symptom {
+            background: rgba(255,255,255,0.3);
+            border: none;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .paste-area {
+            width: 100%;
+            height: 80px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+            resize: vertical;
+        }
+        .paste-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .paste-btn:hover {
+            background: #218838;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: background 0.3s ease;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .prediction {
+            font-size: 20px;
+            font-weight: bold;
+            color: #28a745;
+            margin: 10px 0;
+        }
+        .confidence {
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #dc3545;
+        }
+        .section-title {
+            color: #495057;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        .copy-btn {
+            background: #17a2b8;
+            padding: 8px 16px;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+        .copy-btn:hover {
+            background: #138496;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🩺 Disease Detection App</h1>
+        
+        <div id="loading" style="display: none;">
+            <p>Loading symptoms...</p>
+        </div>
+
+        <div id="symptoms-section">
+            <!-- Search Box -->
+            <div class="section-title">Search Symptoms:</div>
+            <input type="text" id="search-box" class="search-box" placeholder="Type to search symptoms..." onkeyup="filterSymptoms()">
+            
+            <!-- Symptoms List -->
+            <div class="section-title">Available Symptoms:</div>
+            <div class="symptoms-container" id="symptoms-list">
+                <!-- Symptoms will be loaded here -->
+            </div>
+            
+            <!-- Direct Paste Area -->
+            <div class="section-title">Or Paste Symptoms List:</div>
+            <button class="paste-btn" onclick="pasteFromClipboard()">📋 Paste from Clipboard</button>
+            <textarea id="paste-area" class="paste-area" placeholder="Paste symptoms list here (comma-separated)..."></textarea>
+            <button class="paste-btn" onclick="processPastedSymptoms()">Add Pasted Symptoms</button>
+            
+            <!-- Selected Symptoms -->
+            <div class="section-title">Selected Symptoms:</div>
+            <div class="selected-symptoms-container">
+                <div id="selected-count">No symptoms selected</div>
+                <div class="selected-symptoms" id="selected-symptoms-tags">
+                    <!-- Selected symptoms will appear as tags here -->
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <button onclick="predictDisease()" id="predict-btn" disabled>🔍 Predict Disease</button>
+            <button onclick="clearSelection()">🗑️ Clear Selection</button>
+            <button class="copy-btn" onclick="copySelectedSymptoms()">📋 Copy Selected</button>
+        </div>
+
+        <div id="result" class="result" style="display: none;">
+            <!-- Results will be displayed here -->
+        </div>
+    </div>
+
+    <script>
+        let selectedSymptoms = [];
+        let allSymptoms = [];
+
+        // Load symptoms when page loads
+        window.onload = function() {
+            loadSymptoms();
+        };
+
+        async function loadSymptoms() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                const response = await fetch('/symptoms');
+                const data = await response.json();
+                
+                if (data.symptoms) {
+                    allSymptoms = data.symptoms;
+                    displaySymptoms(allSymptoms);
+                } else {
+                    throw new Error('No symptoms received');
+                }
+            } catch (error) {
+                console.error('Error loading symptoms:', error);
+                document.getElementById('symptoms-list').innerHTML = 
+                    '<div class="error">Error loading symptoms. Please refresh the page.</div>';
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displaySymptoms(symptoms) {
+            const container = document.getElementById('symptoms-list');
+            container.innerHTML = '';
+            
+            symptoms.forEach(symptom => {
+                const div = document.createElement('div');
+                div.className = 'symptom-item';
+                div.textContent = symptom;
+                div.onclick = () => toggleSymptom(symptom);
+                
+                // Add selected class if already selected
+                if (selectedSymptoms.includes(symptom)) {
+                    div.classList.add('selected');
+                }
+                
+                container.appendChild(div);
+            });
+        }
+
+        function filterSymptoms() {
+            const searchTerm = document.getElementById('search-box').value.toLowerCase();
+            const filteredSymptoms = allSymptoms.filter(symptom => 
+                symptom.toLowerCase().includes(searchTerm)
+            );
+            displaySymptoms(filteredSymptoms);
+        }
+
+        function toggleSymptom(symptom) {
+            const index = selectedSymptoms.indexOf(symptom);
+            if (index === -1) {
+                selectedSymptoms.push(symptom);
+            } else {
+                selectedSymptoms.splice(index, 1);
+            }
+            updateSelectedSymptomsDisplay();
+            updatePredictButton();
+            displaySymptoms(allSymptoms); // Refresh to update selection colors
+        }
+
+        function updateSelectedSymptomsDisplay() {
+            const countElement = document.getElementById('selected-count');
+            const tagsContainer = document.getElementById('selected-symptoms-tags');
+            
+            if (selectedSymptoms.length === 0) {
+                countElement.textContent = 'No symptoms selected';
+                tagsContainer.innerHTML = '';
+            } else {
+                countElement.textContent = `Selected Symptoms (${selectedSymptoms.length}):`;
+                tagsContainer.innerHTML = '';
+                
+                selectedSymptoms.forEach(symptom => {
+                    const tag = document.createElement('div');
+                    tag.className = 'selected-symptom-tag';
+                    tag.innerHTML = `
+                        ${symptom}
+                        <button class="remove-symptom" onclick="removeSymptom('${symptom}')">×</button>
+                    `;
+                    tagsContainer.appendChild(tag);
+                });
+            }
+        }
+
+        function removeSymptom(symptom) {
+            const index = selectedSymptoms.indexOf(symptom);
+            if (index !== -1) {
+                selectedSymptoms.splice(index, 1);
+                updateSelectedSymptomsDisplay();
+                updatePredictButton();
+                displaySymptoms(allSymptoms); // Refresh to update selection colors
+            }
+        }
+
+        function updatePredictButton() {
+            const btn = document.getElementById('predict-btn');
+            btn.disabled = selectedSymptoms.length === 0;
+        }
+
+        function clearSelection() {
+            selectedSymptoms = [];
+            updateSelectedSymptomsDisplay();
+            updatePredictButton();
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('search-box').value = '';
+            document.getElementById('paste-area').value = '';
+            displaySymptoms(allSymptoms);
+        }
+
+        function processPastedSymptoms() {
+            const pasteArea = document.getElementById('paste-area');
+            const text = pasteArea.value.trim();
+            
+            if (!text) return;
+            
+            // Split by commas, new lines, or other common separators
+            const symptoms = text.split(/[,;\n]/)
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+            
+            symptoms.forEach(symptom => {
+                // Try to match with available symptoms (case insensitive)
+                const matchedSymptom = allSymptoms.find(s => 
+                    s.toLowerCase() === symptom.toLowerCase()
+                );
+                
+                if (matchedSymptom && !selectedSymptoms.includes(matchedSymptom)) {
+                    selectedSymptoms.push(matchedSymptom);
+                }
+            });
+            
+            updateSelectedSymptomsDisplay();
+            updatePredictButton();
+            displaySymptoms(allSymptoms);
+            pasteArea.value = ''; // Clear the paste area
+        }
+
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById('paste-area').value = text;
+            } catch (err) {
+                console.error('Failed to read clipboard:', err);
+                alert('Unable to read from clipboard. Please paste manually.');
+            }
+        }
+
+        function copySelectedSymptoms() {
+            if (selectedSymptoms.length === 0) return;
+            
+            const text = selectedSymptoms.join(', ');
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Selected symptoms copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+
+        async function predictDisease() {
+            const predictBtn = document.getElementById('predict-btn');
+            const resultDiv = document.getElementById('result');
+            
+            predictBtn.disabled = true;
+            predictBtn.textContent = 'Predicting...';
+            
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ symptoms: selectedSymptoms })
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `
+                        <h3>🔍 Prediction Result:</h3>
+                        <div class="prediction">${data.prediction}</div>
+                        ${data.results && data.results.length > 0 ? `
+                            <h4>Other Possible Conditions:</h4>
+                            <ul>
+                                ${data.results.slice(1, 4).map(result => 
+                                    `<li>${result.disease} - ${result.confidence}% confidence</li>`
+                                ).join('')}
+                            </ul>
+                        ` : ''}
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                console.error('Prediction error:', error);
+                resultDiv.innerHTML = `<div class="error">Error making prediction. Please try again.</div>`;
+            } finally {
+                resultDiv.style.display = 'block';
+                predictBtn.disabled = false;
+                predictBtn.textContent = '🔍 Predict Disease';
+            }
+        }
+    </script>
+</body>
+</html>
